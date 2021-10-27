@@ -19,9 +19,13 @@ class resizeNormalize(object):
         self.toTensor = transforms.ToTensor()
 
     def __call__(self, img):
+        original_width,origial_height = (img.width, img.height)
+        ratio = original_width/origial_height
+        target_width,target_heigth = self.size
+        target_width = ratio*target_heigth
         img = img.resize(self.size, self.interpolation)
         img = self.toTensor(img)
-        img.sub_(0.5).div_(0.5)
+#         img.sub_(0.5).div_(0.5)
         return img
 
 

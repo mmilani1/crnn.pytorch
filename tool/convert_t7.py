@@ -85,7 +85,7 @@ def load_params(py_layer, t7_layer):
         params = [trans_pos(p, [0, 1, 3, 2], dim=0) for p in params]
     else:
         all_weights = []
-        name = t7_layer[0].split('.')[-1]
+        name = bytes.decode(t7_layer[0]).split('.')[-1]
         if name == 'BiRnnJoin':
             weight_0, bias_0, weight_1, bias_1 = t7_layer[1]
             weight = np.concatenate((weight_0, weight_1), axis=1)
@@ -126,7 +126,7 @@ def torch_to_pytorch(model, t7_file, output):
     for i, py_layer in enumerate(py_layers):
         py_name = type(py_layer).__name__
         t7_layer = t7_layers[j]
-        t7_name = t7_layer[0].split('.')[-1]
+        t7_name = bytes.decode(t7_layer[0]).split('.')[-1]
         if layer_map[t7_name] != py_name:
             raise RuntimeError('%s does not match %s' % (py_name, t7_name))
 
