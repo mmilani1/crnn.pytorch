@@ -1,15 +1,15 @@
 import torch
 from torch.autograd import Variable
-import utils
-import dataset
+import crnn.utils as utils
+import crnn.dataset as dataset
 from PIL import Image
 import os
 
-import models.crnn as crnn
+import crnn.models.crnn as crnn
 
 
-model_path = './data/crnn.pth'
-img_path = './crops/aus_3/'
+model_path = './crnn/data/crnn.pth'
+img_path = '../crops/muse/'
 alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
 
 def get_files(img_dir):
@@ -26,20 +26,53 @@ def list_files(in_path):
                 img_files.append(os.path.join(dirpath, file))
     return img_files
 
-model = crnn.CRNN(32, 1, 37, 256)
-if torch.cuda.is_available():
-    model = model.cuda()
-print('loading pretrained model from %s' % model_path)
-model.load_state_dict(torch.load(model_path))
+def test():
+    model = crnn.CRNN(32, 1, 37, 256)
+    if torch.cuda.is_available():
+        model = model.cuda()
+    print('loading pretrained model from %s' % model_path)
+    model.load_state_dict(torch.load(model_path))
 
-converter = utils.strLabelConverter(alphabet)
-transformer = dataset.resizeNormalize((100, 32))
+    converter = utils.strLabelConverter(alphabet)
+    transformer = dataset.resizeNormalize((100, 32))
 
-for k, image_path in enumerate(list_files(img_path)):
-    image = Image.open(image_path).convert('L')
+    for k, image_path in enumerate(list_files(img_path)):
+        image = Image.open(image_path).convert('L')
+        image = transformer(image)
+        if torch.cuda.is_available():
+            image = image.cuda()
+        image = image.view(1, *image.size())
+        image = Variable(image)
+
+        model.eval()
+        preds = model(image)
+
+        _, preds = preds.max(2)
+        preds = preds.transpose(1, 0).contiguous().view(-1)
+
+        preds_size = Variable(torch.IntTensor([preds.size(0)]))
+        raw_pred = converter.decode(preds.data, preds_size.data, raw=True)
+        sim_pred = converter.decode(preds.data, preds_size.data, raw=False)
+        print('%-20s => %-20s' % (raw_pred, sim_pred))
+
+def predict(image):
+    model = crnn.CRNN(32, 1, 37, 256)
+
+    if torch.cuda.is_available():
+        model = model.cuda()
+
+    print('loading pretrained model from %s' % model_path)
+    model.load_state_dict(torch.load(model_path))
+
+    converter = utils.strLabelConverter(alphabet)
+    transformer = dataset.resizeNormalize((100, 32))
+
+    image = Image.fromarray(image).convert('L')
     image = transformer(image)
+
     if torch.cuda.is_available():
         image = image.cuda()
+
     image = image.view(1, *image.size())
     image = Variable(image)
 
@@ -50,6 +83,4 @@ for k, image_path in enumerate(list_files(img_path)):
     preds = preds.transpose(1, 0).contiguous().view(-1)
 
     preds_size = Variable(torch.IntTensor([preds.size(0)]))
-    raw_pred = converter.decode(preds.data, preds_size.data, raw=True)
-    sim_pred = converter.decode(preds.data, preds_size.data, raw=False)
-    print('%-20s => %-20s' % (raw_pred, sim_pred))
+    return converter.decode(preds.data, preds_size.data, raw=False)
