@@ -6,65 +6,10 @@ import torch
 from torch.utils.data import Dataset
 from torch.utils.data import sampler
 import torchvision.transforms as transforms
-import lmdb
 import six
 import sys
 from PIL import Image
 import numpy as np
-
-
-class lmdbDataset(Dataset):
-
-    def __init__(self, root=None, transform=None, target_transform=None):
-        self.env = lmdb.open(
-            root,
-            max_readers=1,
-            readonly=True,
-            lock=False,
-            readahead=False,
-            meminit=False)
-
-        if not self.env:
-            print('cannot creat lmdb from %s' % (root))
-            sys.exit(0)
-
-        with self.env.begin(write=False) as txn:
-            nSamples = int(txn.get('num-samples'))
-            self.nSamples = nSamples
-
-        self.transform = transform
-        self.target_transform = target_transform
-
-    def __len__(self):
-        return self.nSamples
-
-    def __getitem__(self, index):
-        assert index <= len(self), 'index range error'
-        index += 1
-        with self.env.begin(write=False) as txn:
-            img_key = 'image-%09d' % index
-            imgbuf = txn.get(img_key)
-
-            buf = six.BytesIO()
-            buf.write(imgbuf)
-            buf.seek(0)
-            try:
-                img = Image.open(buf).convert('L')
-            except IOError:
-                print('Corrupted image for %d' % index)
-                return self[index + 1]
-
-            if self.transform is not None:
-                img = self.transform(img)
-
-            label_key = 'label-%09d' % index
-            label = str(txn.get(label_key))
-
-            if self.target_transform is not None:
-                label = self.target_transform(label)
-
-        return (img, label)
-
 
 class resizeNormalize(object):
 
@@ -74,6 +19,10 @@ class resizeNormalize(object):
         self.toTensor = transforms.ToTensor()
 
     def __call__(self, img):
+        original_width,origial_height = (img.width, img.height)
+        ratio = original_width/origial_height
+        target_width,target_heigth = self.size
+        target_width = ratio*target_heigth
         img = img.resize(self.size, self.interpolation)
         img = self.toTensor(img)
         img.sub_(0.5).div_(0.5)
