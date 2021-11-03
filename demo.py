@@ -7,10 +7,15 @@ import os
 
 import crnn.models.crnn as crnn
 
-
 model_path = './crnn/data/crnn.pth'
 img_path = '../crops/muse/'
 alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
+
+model = crnn.CRNN(32, 1, 37, 256)
+if torch.cuda.is_available():
+    model = model.cuda()
+print('loading pretrained model from %s' % model_path)
+model.load_state_dict(torch.load(model_path))
 
 def get_files(img_dir):
     imgs, masks, xmls = list_files(img_dir)
@@ -27,12 +32,6 @@ def list_files(in_path):
     return img_files
 
 def test():
-    model = crnn.CRNN(32, 1, 37, 256)
-    if torch.cuda.is_available():
-        model = model.cuda()
-    print('loading pretrained model from %s' % model_path)
-    model.load_state_dict(torch.load(model_path))
-
     converter = utils.strLabelConverter(alphabet)
     transformer = dataset.resizeNormalize((100, 32))
 
@@ -56,14 +55,6 @@ def test():
         print('%-20s => %-20s' % (raw_pred, sim_pred))
 
 def predict(image):
-    model = crnn.CRNN(32, 1, 37, 256)
-
-    if torch.cuda.is_available():
-        model = model.cuda()
-
-    print('loading pretrained model from %s' % model_path)
-    model.load_state_dict(torch.load(model_path))
-
     converter = utils.strLabelConverter(alphabet)
     transformer = dataset.resizeNormalize((100, 32))
 
